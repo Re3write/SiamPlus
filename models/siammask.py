@@ -17,7 +17,7 @@ class SiamMask(nn.Module):
         self.anchor_num = len(self.anchors["ratios"]) * len(self.anchors["scales"])
         self.anchor = Anchors(anchors)
         self.features = None
-        self.rpn_model = None
+        # self.rpn_model = None
         self.mask_model = None
         self.o_sz = o_sz
         self.g_sz = g_sz
@@ -36,36 +36,33 @@ class SiamMask(nn.Module):
     def feature_extractor(self, x):
         return self.features(x)
 
-    def rpn(self, template, search):
-        pred_cls, pred_loc = self.rpn_model(template, search)
-        return pred_cls, pred_loc
+    # def rpn(self, template, search):
+    #     pred_cls, pred_loc = self.rpn_model(template, search)
+    #     return pred_cls, pred_loc
 
     def mask(self, template, search):
         pred_mask = self.mask_model(template, search)
         return pred_mask
 
-    def _add_rpn_loss(self, label_cls, label_loc, lable_loc_weight, label_mask, label_mask_weight,
-                      rpn_pred_cls, rpn_pred_loc, rpn_pred_mask):
-        rpn_loss_cls = select_cross_entropy_loss(rpn_pred_cls, label_cls)
+    def _add_rpn_loss(self, label_mask, label_mask_weight, pred_mask):
 
-        rpn_loss_loc = weight_l1_loss(rpn_pred_loc, label_loc, lable_loc_weight)
+        loss_mask, iou_m, iou_5, iou_7 = select_mask_logistic_loss(pred_mask, label_mask, label_mask_weight)
 
-        rpn_loss_mask, iou_m, iou_5, iou_7 = select_mask_logistic_loss(rpn_pred_mask, label_mask, label_mask_weight)
-
-        return rpn_loss_cls, rpn_loss_loc, rpn_loss_mask, iou_m, iou_5, iou_7
+        return  loss_mask, iou_m, iou_5, iou_7
 
     def run(self, template, search, softmax=False):
         """
         run network
         """
-        template_feature = self.feature_extractor(template)
-        search_feature = self.feature_extractor(search)
-        rpn_pred_cls, rpn_pred_loc = self.rpn(template_feature, search_feature)
-        rpn_pred_mask = self.mask(template_feature, search_feature)  # (b, 63*63, w, h)
+        template_feature = self.feature_extractor(template)   #7
+        search_feature = self.feature_extractor(search)       #31
+        # rpn_pred_cls, rpn_pred_loc = self.rpn(template_feature, search_feature)
+        pred_mask = self.mask(template_feature, search_feature)  # (b, 63*63, w, h)  3969 ,25,25
 
-        if softmax:
-            rpn_pred_cls = self.softmax(rpn_pred_cls)
-        return rpn_pred_cls, rpn_pred_loc, rpn_pred_mask, template_feature, search_feature
+        # if softmax:
+        #     rpn_pred_cls = self.softmax(rpn_pred_cls)
+        # return rpn_pred_cls, rpn_pred_loc, rpn_pred_mask, template_feature, search_feature
+        return  pred_mask,template_feature,search_feature
 
     def softmax(self, cls):
         b, a2, h, w = cls.size()
@@ -86,24 +83,19 @@ class SiamMask(nn.Module):
         template = input['template']
         search = input['search']
         if self.training:
-            label_cls = input['label_cls']
-            label_loc = input['label_loc']
-            lable_loc_weight = input['label_loc_weight']
-            label_mask = input['label_mask']
+            label_mask = input['label_mask']   #shape 1,255,255
             label_mask_weight = input['label_mask_weight']
 
-        rpn_pred_cls, rpn_pred_loc, rpn_pred_mask, template_feature, search_feature = \
+        pred_mask, template_feature, search_feature = \
             self.run(template, search, softmax=self.training)
 
         outputs = dict()
 
-        outputs['predict'] = [rpn_pred_loc, rpn_pred_cls, rpn_pred_mask, template_feature, search_feature]
+        outputs['predict'] = [pred_mask, template_feature, search_feature]
 
         if self.training:
-            rpn_loss_cls, rpn_loss_loc, rpn_loss_mask, iou_acc_mean, iou_acc_5, iou_acc_7 = \
-                self._add_rpn_loss(label_cls, label_loc, lable_loc_weight, label_mask, label_mask_weight,
-                                   rpn_pred_cls, rpn_pred_loc, rpn_pred_mask)
-            outputs['losses'] = [rpn_loss_cls, rpn_loss_loc, rpn_loss_mask]
+            loss_mask, iou_acc_mean, iou_acc_5, iou_acc_7 = self._add_rpn_loss(label_mask, label_mask_weight,pred_mask)
+            outputs['losses'] = [loss_mask]
             outputs['accuracy'] = [iou_acc_mean, iou_acc_5, iou_acc_7]
 
         return outputs

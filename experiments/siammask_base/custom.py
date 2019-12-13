@@ -12,8 +12,8 @@ class ResDownS(nn.Module):
     def __init__(self, inplane, outplane):
         super(ResDownS, self).__init__()
         self.downsample = nn.Sequential(
-                nn.Conv2d(inplane, outplane, kernel_size=1, bias=False),
-                nn.BatchNorm2d(outplane))
+            nn.Conv2d(inplane, outplane, kernel_size=1, bias=False),
+            nn.BatchNorm2d(outplane))
 
     def forward(self, x):
         x = self.downsample(x)
@@ -43,7 +43,7 @@ class ResDown(MultiStageFeature):
         lr = start_lr * feature_mult
 
         def _params(module, mult=1):
-            params = list(filter(lambda x:x.requires_grad, module.parameters()))
+            params = list(filter(lambda x: x.requires_grad, module.parameters()))
             if len(params):
                 return [{'params': params, 'lr': lr * mult}]
             else:
@@ -84,17 +84,20 @@ class MaskCorr(Mask):
     def __init__(self, oSz=63):
         super(MaskCorr, self).__init__()
         self.oSz = oSz
-        self.mask = DepthCorr(256, 256, self.oSz**2)
+        self.mask = DepthCorr(256, 256, self.oSz ** 2)
 
     def forward(self, z, x):
         return self.mask(z, x)
+
+
+# class Maskhead(nn.Module):
 
 
 class Custom(SiamMask):
     def __init__(self, pretrain=False, **kwargs):
         super(Custom, self).__init__(**kwargs)
         self.features = ResDown(pretrain=pretrain)
-        self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
+        # self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
         self.mask_model = MaskCorr()
 
     def template(self, template):
@@ -110,4 +113,3 @@ class Custom(SiamMask):
         rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
         pred_mask = self.mask(self.zf, search)
         return rpn_pred_cls, rpn_pred_loc, pred_mask
-

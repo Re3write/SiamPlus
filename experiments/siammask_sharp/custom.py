@@ -146,10 +146,15 @@ class Refine(nn.Module):
         else:
             p3 = corr_feature.permute(0, 2, 3, 1).contiguous().view(-1, 256, 1, 1)
 
+        # print('p3',p3.size())
         out = self.deconv(p3)
+        # print('out1',out.size())
         out = self.post0(F.upsample(self.h2(out) + self.v2(p2), size=(31, 31)))
+        # print('out2', out.size())
         out = self.post1(F.upsample(self.h1(out) + self.v1(p1), size=(61, 61)))
+        # print('out3', out.size())
         out = self.post2(F.upsample(self.h0(out) + self.v0(p0), size=(127, 127)))
+        # print('out4', out.size())
         out = out.view(-1, 127*127)
         return out
 

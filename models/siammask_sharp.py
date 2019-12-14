@@ -62,10 +62,14 @@ class SiamMask(nn.Module):
         feature, search_feature = self.features.forward_all(search)
         rpn_pred_cls, rpn_pred_loc = self.rpn(template_feature, search_feature)
         corr_feature = self.mask_model.mask.forward_corr(template_feature, search_feature)  # (b, 256, w, h)
-        rpn_pred_mask = self.refine_model(feature, corr_feature)
+        # print('corr:',corr_feature.size())
 
+        rpn_pred_mask = self.refine_model(feature, corr_feature) #        out = out.view(-1, 127*127)
+        # shape(288,1,127,127)
+        #288,16129
         if softmax:
             rpn_pred_cls = self.softmax(rpn_pred_cls)
+        # print('final:',rpn_pred_mask.size())
         return rpn_pred_cls, rpn_pred_loc, rpn_pred_mask, template_feature, search_feature
 
     def softmax(self, cls):

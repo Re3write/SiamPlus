@@ -35,8 +35,9 @@
                 "frame_range": 1
             }
         },
-        "template_size": 127,
+        "template_size": 255,
         "search_size": 255,
+        "origin_size": 255,
         "base_size": 8,
         "size": 25,
 

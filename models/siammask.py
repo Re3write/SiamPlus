@@ -56,9 +56,10 @@ class SiamMask(nn.Module):
         """
         template_feature = self.feature_extractor(template)   #7
         search_feature = self.feature_extractor(search)       #31
+        # print(template_feature.size(),search_feature.size())
         # rpn_pred_cls, rpn_pred_loc = self.rpn(template_feature, search_feature)
         pred_mask = self.mask(template_feature, search_feature)  # (b, 63*63, w, h)  3969 ,25,25
-
+        # print(pred_mask.size())
         # if softmax:
         #     rpn_pred_cls = self.softmax(rpn_pred_cls)
         # return rpn_pred_cls, rpn_pred_loc, rpn_pred_mask, template_feature, search_feature
@@ -92,7 +93,6 @@ class SiamMask(nn.Module):
         outputs = dict()
 
         outputs['predict'] = [pred_mask, template_feature, search_feature]
-
         if self.training:
             loss_mask, iou_acc_mean, iou_acc_5, iou_acc_7 = self._add_rpn_loss(label_mask, label_mask_weight,pred_mask)
             outputs['losses'] = [loss_mask]

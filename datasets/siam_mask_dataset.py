@@ -16,6 +16,7 @@ import math
 import sys
 pyv = sys.version[0]
 import cv2
+import os
 if pyv[0] == '3':
     cv2.ocl.setUseOpenCL(False)
 
@@ -416,8 +417,8 @@ class DataSets(Dataset):
         if 'size' in cfg:
             self.size = cfg['size']
 
-        if (self.search_size - self.template_size) / self.anchors.stride + 1 + self.base_size != self.size:
-            raise Exception("size not match!")  # TODO: calculate size online
+        # if (self.search_size - self.template_size) / self.anchors.stride + 1 + self.base_size != self.size:
+        #     raise Exception("size not match!")  # TODO: calculate size online
         if 'crop_size' in cfg:
             self.crop_size = cfg['crop_size']
         self.template_small = False
@@ -478,7 +479,7 @@ class DataSets(Dataset):
 
     def imread(self, path):
         img = cv2.imread(path)
-
+        # print(img.shape)
         if self.origin_size == self.template_size:
             return img, 1.0
 
@@ -582,13 +583,17 @@ class DataSets(Dataset):
 
         def draw(image, box, name):
             image = image.copy()
-            x1, y1, x2, y2 = map(lambda x: int(round(x)), box)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0))
+            # x1, y1, x2, y2 = map(lambda x: int(round(x)), box)
+            # cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0))
             cv2.imwrite(name, image)
-
+        # debug = True
         if debug:
-            draw(template_image, template_box, "debug/{:06d}_ot.jpg".format(index))
-            draw(search_image, search_box, "debug/{:06d}_os.jpg".format(index))
+            if not os.path.exists('debug'):
+                os.mkdir('debug')
+                print('debug folder create')
+            # draw(template_image, template_box, "debug/{:06d}_ot.jpg".format(index))
+            # draw(search_image, search_box, "debug/{:06d}_os.jpg".format(index))
+            draw(np.array(mask*255,dtype=np.uint8),_,"debug/{:06d}_m.png".format(index))
             draw(template, _, "debug/{:06d}_t.jpg".format(index))
             draw(search, bbox, "debug/{:06d}_s.jpg".format(index))
 
@@ -599,7 +604,7 @@ class DataSets(Dataset):
             mask_weight = np.zeros([1, cls.shape[1], cls.shape[2]], dtype=np.float32)
 
         template, search = map(lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search])
-        
+
         mask = (np.expand_dims(mask, axis=0) > 0.5) * 2 - 1  # 1*H*W
 
         return template, search, cls, delta, delta_weight, np.array(bbox, np.float32), \

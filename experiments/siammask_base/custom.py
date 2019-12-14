@@ -90,15 +90,30 @@ class MaskCorr(Mask):
         return self.mask(z, x)
 
 
-# class Maskhead(nn.Module):
+class MaskConcat(Mask):
+    def __init__(self,out_channel = 63**2):
+        super(MaskConcat,self).__init__()
+        self.conv1 = nn.Conv2d(512,1024,7,1)
+        self.bn1 = nn.BatchNorm2d(1024)
+        self.conv2 = nn.Conv2d(1024,out_channel,1)
+        self.bn2 = nn.BatchNorm2d(out_channel)
+        self.relu = nn.ReLU(inplace=True)
 
+    def forward(self, z, x):
+        input = torch.cat((z,x),1)
+        output = self.conv1(input)
+        output = self.relu(self.bn1(output))
+        output = self.conv2(output)
+        output = self.relu(self.bn2(output))
+        return output
 
 class Custom(SiamMask):
     def __init__(self, pretrain=False, **kwargs):
         super(Custom, self).__init__(**kwargs)
         self.features = ResDown(pretrain=pretrain)
         # self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
-        self.mask_model = MaskCorr()
+        # self.mask_model = MaskCorr()
+        self.mask_model = MaskConcat()
 
     def template(self, template):
         self.zf = self.features(template)

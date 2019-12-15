@@ -241,9 +241,9 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
         mask_loss = torch.mean(outputs['losses'][0])
         mask_iou_mean, mask_iou_at_5, mask_iou_at_7 = torch.mean(outputs['accuracy'][0]), torch.mean(outputs['accuracy'][1]), torch.mean(outputs['accuracy'][2])
 
-        cls_weight, reg_weight, mask_weight = cfg['loss']['weight']
+        # cls_weight, reg_weight, mask_weight = cfg['loss']['weight']
 
-        loss = mask_loss * mask_weight
+        loss = mask_loss * 36
 
         optimizer.zero_grad()
         loss.backward()

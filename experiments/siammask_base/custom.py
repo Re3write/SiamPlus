@@ -91,20 +91,21 @@ class MaskCorr(Mask):
 
 
 class MaskConcat(Mask):
-    def __init__(self,out_channel = 63**2):
+    def __init__(self,out_channel = 2):
         super(MaskConcat,self).__init__()
-        self.conv1 = nn.Conv2d(512,1024,7,1)
-        self.bn1 = nn.BatchNorm2d(1024)
-        self.conv2 = nn.Conv2d(1024,out_channel,1)
+        self.conv1 = nn.Conv2d(512,256,7,1)
+        self.bn1 = nn.BatchNorm2d(256)
+        self.conv2 = nn.Conv2d(256,out_channel,1)
         self.bn2 = nn.BatchNorm2d(out_channel)
         self.relu = nn.ReLU(inplace=True)
+        self.upSample = nn.UpsamplingBilinear2d(size=[255, 255])
 
     def forward(self, z, x):
         input = torch.cat((z,x),1)
         output = self.conv1(input)
         output = self.relu(self.bn1(output))
         output = self.conv2(output)
-        output = self.relu(self.bn2(output))
+        output = self.upSample(output)
         return output
 
 class Custom(SiamMask):

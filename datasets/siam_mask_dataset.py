@@ -605,8 +605,9 @@ class DataSets(Dataset):
 
         template, search = map(lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search])
 
-        mask = (np.expand_dims(mask, axis=0) > 0.5) * 2 - 1  # 1*H*W
-
+        # mask = (mask > 0.5)  # 1*H*W
+        mask[mask < 0.0] = 0.0
+        mask[mask > 1.0] = 1.0
         return template, search, cls, delta, delta_weight, np.array(bbox, np.float32), \
-               np.array(mask, np.float32), np.array(mask_weight, np.float32)
+               np.array(mask, np.int64), np.array(mask_weight, np.float32)
 

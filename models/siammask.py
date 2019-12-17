@@ -176,8 +176,12 @@ def select_mask_logistic_loss(p_m, mask, weight, o_sz=63, g_sz=127):
 
 
 def iou_measure(pred, label):
+    # np.savetxt('pred_ori.txt',pred[0][1].cpu().detach().numpy())
+    _, pred = torch.max(pred, 1)
     pred = pred.ge(0)
+    # np.savetxt('pred.txt',pred[0].cpu().numpy())
     mask_sum = pred.eq(1).add(label.eq(1))
+    # np.savetxt('masksum.txt',mask_sum[0].cpu().numpy())
     intxn = torch.sum(mask_sum == 2, dim=1).float()
     union = torch.sum(mask_sum > 0, dim=1).float()
     iou = intxn / union
@@ -186,13 +190,14 @@ def iou_measure(pred, label):
 
 def CELOSS(label, weight, pre):
     func = CrossEntropyLoss(weight=None)
-    print('label:', label.size())
-    print('pre:', pre.size())
+    # print('label:', label.size())
+    # print('pre:', pre.size())
     # print(label.type())
-    tmp = label[0].cpu().numpy()
-    np.savetxt('data2.txt',tmp)
+    # tmp = label[0].cpu().numpy()
+    # np.savetxt('data2.txt',tmp)
     loss = func(pre, label)
-    return 0, 0, 0, loss
+    iou_mean, iou_5, iou_7 = iou_measure(pre, label)
+    return loss, iou_mean, iou_5, iou_7
 
 
 class SegmentationLosses(CrossEntropyLoss):

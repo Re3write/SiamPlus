@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from utils.load_helper import load_pretrain
 from resnet import resnet50
+from models.pose_hrnet import get_pose_net
 
 
 class ResDownS(nn.Module):
@@ -52,12 +53,38 @@ class ResDown(MultiStageFeature):
         groups = []
         groups += _params(self.downsample)
         groups += _params(self.features, 0.1)
+        # print('group:', groups)
         return groups
 
     def forward(self, x):
         output = self.features(x)
         p3 = self.downsample(output[1])
         return p3
+
+
+class HR(nn.Module):
+    def __init__(self, hr_cfg, is_train=True):
+        super(HR, self).__init__()
+        self.features = get_pose_net(hr_cfg, is_train=is_train)
+
+    def param_groups(self, start_lr, feature_mult=1):
+        lr = start_lr * feature_mult
+
+        def _params(module, mult=1):
+            params = list(filter(lambda x: x.requires_grad, module.parameters()))
+            if len(params):
+                return [{'params': params, 'lr': lr * mult}]
+            else:
+                return []
+
+        groups = []
+        groups += _params(self.features, 0.1)
+        return groups
+
+    def forward(self, x):
+        output = self.features(x)
+
+        return output
 
 
 class UP(RPN):
@@ -91,27 +118,31 @@ class MaskCorr(Mask):
 
 
 class MaskConcat(Mask):
-    def __init__(self,out_channel = 2):
-        super(MaskConcat,self).__init__()
-        self.conv1 = nn.Conv2d(512,256,7,1)
-        self.bn1 = nn.BatchNorm2d(256)
-        self.conv2 = nn.Conv2d(256,out_channel,1)
-        self.bn2 = nn.BatchNorm2d(out_channel)
+    def __init__(self, out_channel=2):
+        super(MaskConcat, self).__init__()
+        self.conv1 = nn.Conv2d(64, 128, kernel_size=3, stride=1,padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(128)
+        self.conv2 = nn.Conv2d(128, out_channel, kernel_size=1, stride=1, bias=False)
+        # self.bn2 = nn.BatchNorm2d(out_channel)
         self.relu = nn.ReLU(inplace=True)
         self.upSample = nn.UpsamplingBilinear2d(size=[255, 255])
 
     def forward(self, z, x):
-        input = torch.cat((z,x),1)
+        input = torch.cat((z, x), 1)
         output = self.conv1(input)
         output = self.relu(self.bn1(output))
+        # print('output1:',output.size())
         output = self.conv2(output)
+        # print('output2:',output.size())
         output = self.upSample(output)
         return output
 
+
 class Custom(SiamMask):
-    def __init__(self, pretrain=False, **kwargs):
+    def __init__(self, pretrain=False, hr_cfg=None, **kwargs):
         super(Custom, self).__init__(**kwargs)
-        self.features = ResDown(pretrain=pretrain)
+        # self.features = ResDown(pretrain=pretrain)
+        self.features = HR(hr_cfg, is_train=True)
         # self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
         # self.mask_model = MaskCorr()
         self.mask_model = MaskConcat()

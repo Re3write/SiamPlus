@@ -27,7 +27,7 @@ from utils.config_helper import load_config
 from torch.utils.collect_env import get_pretty_env_info
 
 torch.backends.cudnn.benchmark = True
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1,2'
 
 parser = argparse.ArgumentParser(description='PyTorch Tracking SiamMask Training')
 
@@ -55,14 +55,13 @@ parser.add_argument('--pretrained', dest='pretrained', default='',
                     help='use pre-trained model')
 parser.add_argument('--config', dest='config', required=True,
                     help='hyperparameter of SiamMask in json format')
-parser.add_argument('--arch', dest='arch', default='', choices=['Custom',],
+parser.add_argument('--arch', dest='arch', default='', choices=['Custom', ],
                     help='architecture of pretrained model')
 parser.add_argument('-l', '--log', default="log.txt", type=str,
                     help='log file')
 parser.add_argument('-s', '--save_dir', default='snapshot', type=str,
                     help='save dir')
 parser.add_argument('--log-dir', default='board', help='TensorBoard log dir')
-
 
 best_acc = 0.
 
@@ -103,7 +102,8 @@ def build_opt_lr(model, cfg, args, epoch):
         # trainable_params = backbone_feature + \
         #                    model.rpn_model.param_groups(cfg['lr']['start_lr'], cfg['lr']['rpn_lr_mult']) + \
         #                    model.mask_model.param_groups(cfg['lr']['start_lr'], cfg['lr']['mask_lr_mult'])
-        trainable_params = backbone_feature + model.mask_model.param_groups(cfg['lr']['start_lr'], cfg['lr']['mask_lr_mult'])
+        trainable_params = backbone_feature + model.mask_model.param_groups(cfg['lr']['start_lr'],
+                                                                            cfg['lr']['mask_lr_mult'])
 
     optimizer = torch.optim.SGD(trainable_params, args.lr,
                                 momentum=args.momentum,
@@ -140,19 +140,20 @@ def main():
     # build dataset
     train_loader, val_loader = build_data_loader(cfg)
 
+    from tools.config import hr_cfg, hr_updata_config
+    hr_updata_config(hr_cfg, '../../tools/config/w32_384x288_adam_lr1e-3.yaml')
     if args.arch == 'Custom':
         from custom import Custom
-        model = Custom(pretrain=True, anchors=cfg['anchors'])
+        model = Custom(pretrain=True, hr_cfg=hr_cfg, anchors=cfg['anchors'])
     else:
         exit()
     logger.info(model)
 
-    if args.pretrained:
-        model = load_pretrain(model, args.pretrained)
+    # if args.pretrained:
+    #     model = load_pretrain(model, args.pretrained)
 
-    model = model.cuda()
     # dist_model = torch.nn.DataParallel(model, list(range(torch.cuda.device_count()))).cuda()
-    dist_model = torch.nn.DataParallel(model, device_ids = [0,1]).cuda()
+    dist_model = torch.nn.DataParallel(model, device_ids=[0, 1]).cuda()
 
     if args.resume and args.start_epoch != 0:
         model.features.unfix((args.start_epoch - 1) / args.epochs)
@@ -181,7 +182,7 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
     end = time.time()
 
     def is_valid_number(x):
-        return not(math.isnan(x) or math.isinf(x) or x > 1e4)
+        return not (math.isnan(x) or math.isinf(x) or x > 1e4)
 
     num_per_epoch = len(train_loader.dataset) // args.epochs // args.batch
     start_epoch = epoch
@@ -195,20 +196,20 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
                 os.makedirs(args.save_dir)
 
             save_checkpoint({
-                    'epoch': epoch,
-                    'arch': args.arch,
-                    'state_dict': model.module.state_dict(),
-                    'best_acc': best_acc,
-                    'optimizer': optimizer.state_dict(),
-                    'anchor_cfg': cfg['anchors']
-                }, False,
+                'epoch': epoch,
+                'arch': args.arch,
+                'state_dict': model.module.state_dict(),
+                'best_acc': best_acc,
+                'optimizer': optimizer.state_dict(),
+                'anchor_cfg': cfg['anchors']
+            }, False,
                 os.path.join(args.save_dir, 'checkpoint_e%d.pth' % (epoch)),
                 os.path.join(args.save_dir, 'best.pth'))
 
             if epoch == args.epochs:
                 return
 
-            if model.module.features.unfix(epoch/args.epochs):
+            if model.module.features.unfix(epoch / args.epochs):
                 logger.info('unfix part model.')
                 optimizer, lr_scheduler = build_opt_lr(model.module, cfg, args, epoch)
 
@@ -221,7 +222,7 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
         if iter % num_per_epoch == 0 and iter != 0:
             for idx, pg in enumerate(optimizer.param_groups):
                 logger.info("epoch {} lr {}".format(epoch, pg['lr']))
-                tb_writer.add_scalar('lr/group%d' % (idx+1), pg['lr'], tb_index)
+                tb_writer.add_scalar('lr/group%d' % (idx + 1), pg['lr'], tb_index)
 
         data_time = time.time() - end
         avg.update(data_time=data_time)
@@ -239,7 +240,8 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
         outputs = model(x)
 
         mask_loss = torch.mean(outputs['losses'][0])
-        mask_iou_mean, mask_iou_at_5, mask_iou_at_7 = torch.mean(outputs['accuracy'][0]), torch.mean(outputs['accuracy'][1]), torch.mean(outputs['accuracy'][2])
+        mask_iou_mean, mask_iou_at_5, mask_iou_at_7 = torch.mean(outputs['accuracy'][0]), torch.mean(
+            outputs['accuracy'][1]), torch.mean(outputs['accuracy'][2])
         # mask_iou_mean, mask_iou_at_5, mask_iou_at_7 =0 ,0,0
         # cls_weight, reg_weight, mask_weight = cfg['loss']['weight']
 
@@ -265,7 +267,6 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
         avg.update(batch_time=batch_time, rpn_mask_loss=mask_loss, siammask_loss=siammask_loss,
                    mask_iou_mean=mask_iou_mean, mask_iou_at_5=mask_iou_at_5, mask_iou_at_7=mask_iou_at_7)
 
-
         tb_writer.add_scalar('loss/mask', mask_loss, tb_index)
         tb_writer.add_scalar('mask/mIoU', mask_iou_mean, tb_index)
         tb_writer.add_scalar('mask/AP@.5', mask_iou_at_5, tb_index)
@@ -276,9 +277,10 @@ def train(train_loader, model, optimizer, lr_scheduler, epoch, cfg):
             logger.info('Epoch: [{0}][{1}/{2}] lr: {lr:.6f}\t{batch_time:s}\t{data_time:s}'
                         '\t{rpn_mask_loss:s}\t{siammask_loss:s}'
                         '\t{mask_iou_mean:s}\t{mask_iou_at_5:s}\t{mask_iou_at_7:s}'.format(
-                        epoch+1, (iter + 1) % num_per_epoch, num_per_epoch, lr=cur_lr, batch_time=avg.batch_time,
-                        data_time=avg.data_time, rpn_mask_loss=avg.rpn_mask_loss, siammask_loss=avg.siammask_loss, mask_iou_mean=avg.mask_iou_mean,
-                        mask_iou_at_5=avg.mask_iou_at_5,mask_iou_at_7=avg.mask_iou_at_7))
+                epoch + 1, (iter + 1) % num_per_epoch, num_per_epoch, lr=cur_lr, batch_time=avg.batch_time,
+                data_time=avg.data_time, rpn_mask_loss=avg.rpn_mask_loss, siammask_loss=avg.siammask_loss,
+                mask_iou_mean=avg.mask_iou_mean,
+                mask_iou_at_5=avg.mask_iou_at_5, mask_iou_at_7=avg.mask_iou_at_7))
             print_speed(iter + 1, avg.batch_time.avg, args.epochs * num_per_epoch)
 
 

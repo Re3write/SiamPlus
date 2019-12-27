@@ -4,7 +4,7 @@ export PYTHONPATH=$ROOT:$PYTHONPATH
 mkdir -p logs
 
 python3 -u $ROOT/tools/train_siammask.py \
-    --config=config.json -b 64 \
+    --config=config.json -b 32 \
     -j 20\
     --epochs 20 \
     --log logs/log.txt \

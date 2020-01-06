@@ -1,10 +1,11 @@
 ROOT=/home/sk49/workspace/cy/Siamplus
 export PYTHONPATH=$ROOT:$PYTHONPATH
+export CUDA_VISIBLE_DEVICES=3
 
 mkdir -p logs
 
 python3 -u $ROOT/tools/train_siammask.py \
-    --config=config.json -b 32 \
+    --config=config.json -b 12 \
     -j 20\
     --epochs 20 \
     --log logs/log.txt \

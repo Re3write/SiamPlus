@@ -120,21 +120,21 @@ class MaskCorr(Mask):
 class MaskConcat(Mask):
     def __init__(self, out_channel=2):
         super(MaskConcat, self).__init__()
-        self.conv1 = nn.Conv2d(64, 128, kernel_size=3, stride=1,padding=1, bias=False)
+        self.conv1 = nn.Conv2d(64, 64, kernel_size=3, stride=1,padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(128)
         self.conv2 = nn.Conv2d(128, out_channel, kernel_size=1, stride=1, bias=False)
         # self.bn2 = nn.BatchNorm2d(out_channel)
         self.relu = nn.ReLU(inplace=True)
-        self.upSample = nn.UpsamplingBilinear2d(size=[255, 255])
+        # self.upSample = nn.UpsamplingBilinear2d(size=[255, 255])
 
     def forward(self, z, x):
-        input = torch.cat((z, x), 1)
-        output = self.conv1(input)
+        # input = torch.cat((z, x), 1)
+        output = self.conv1(z)
         output = self.relu(self.bn1(output))
         # print('output1:',output.size())
         output = self.conv2(output)
         # print('output2:',output.size())
-        output = self.upSample(output)
+        # output = self.upSample(output)
         return output
 
 

@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from utils.anchors import Anchors
 from torch.nn import BCELoss, CrossEntropyLoss
 import numpy as np
-
+import cv2
 
 class SiamMask(nn.Module):
     def __init__(self, anchors=None, o_sz=63, g_sz=127):
@@ -176,10 +176,10 @@ def select_mask_logistic_loss(p_m, mask, weight, o_sz=63, g_sz=127):
 
 
 def iou_measure(pred, label):
-    # np.savetxt('pred_ori.txt',pred[0][1].cpu().detach().numpy())
+    np.savetxt('pred_ori.txt',pred[0][1].cpu().detach().numpy())
     _, pred = torch.max(pred, 1)
     pred = pred.ge(0)
-    # np.savetxt('pred.txt',pred[0].cpu().numpy())
+    np.savetxt('pred.txt',pred[0].cpu().numpy())
     mask_sum = pred.eq(1).add(label.eq(1))
     # np.savetxt('masksum.txt',mask_sum[0].cpu().numpy())
     intxn = torch.sum(mask_sum == 2, dim=1).float()
@@ -193,8 +193,9 @@ def CELOSS(label, weight, pre):
     # print('label:', label.size())
     # print('pre:', pre.size())
     # print(label.type())
-    # tmp = label[0].cpu().numpy()
-    # np.savetxt('data2.txt',tmp)
+    # cv2.imwrite('label2.jpg', (label[0].cpu().numpy() * 255).astype(np.uint8))
+    tmp = label[0].cpu().numpy()
+    np.savetxt('data2.txt',tmp)
     loss = func(pre, label)
     iou_mean, iou_5, iou_7 = iou_measure(pre, label)
     return loss, iou_mean, iou_5, iou_7

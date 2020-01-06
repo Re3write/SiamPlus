@@ -27,7 +27,7 @@ from utils.config_helper import load_config
 from torch.utils.collect_env import get_pretty_env_info
 
 torch.backends.cudnn.benchmark = True
-os.environ['CUDA_VISIBLE_DEVICES'] = '1,2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 parser = argparse.ArgumentParser(description='PyTorch Tracking SiamMask Training')
 
@@ -153,7 +153,7 @@ def main():
     #     model = load_pretrain(model, args.pretrained)
 
     # dist_model = torch.nn.DataParallel(model, list(range(torch.cuda.device_count()))).cuda()
-    dist_model = torch.nn.DataParallel(model, device_ids=[0, 1]).cuda()
+    dist_model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
 
     if args.resume and args.start_epoch != 0:
         model.features.unfix((args.start_epoch - 1) / args.epochs)
